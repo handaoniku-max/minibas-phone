@@ -46,8 +46,10 @@ function req(path, body) {
 }
 
 /* ================= バックアップ（ファイルに保存・送る） ================= */
-const backupName = () => `minibas-v3-${today()}.json`;
+const backupName = (ext = 'json') => `minibas-v3-${today()}.${ext}`;
 const backupFile = () => new File([JSON.stringify(MinibasCore.state, null, 2)], backupName(), { type: 'application/json' });
+// Android の Chrome は .json を共有できない（共有できる種類が決まっている）ので、送るときは中身はそのままで .txt にする
+const shareFile = () => new File([JSON.stringify(MinibasCore.state, null, 2)], backupName('txt'), { type: 'text/plain' });
 async function markBackup() { try { await Store.put('lastBackup', today()); } catch (e) { } }
 async function backupData() {
   await ready;
@@ -58,11 +60,11 @@ async function backupData() {
 }
 async function shareBackup() {
   await ready;
-  const f = backupFile();
+  const f = shareFile();
   try { await navigator.share({ files: [f], title: 'ミニバス練習ノートのバックアップ' }); await markBackup(); if (tab === 'settings') render(); }
-  catch (e) { if (e.name !== 'AbortError') tell('送れませんでした。「ファイルに保存」をためしてください'); }
+  catch (e) { if (e.name !== 'AbortError') { console.warn('share', e); tell(`送れませんでした（${e.name}）。「ファイルに保存」をためしてください`); } }
 }
-const canShareFile = () => { try { return !!navigator.canShare?.({ files: [new File(['{}'], 'a.json', { type: 'application/json' })] }); } catch (e) { return false; } };
+const canShareFile = () => { try { return !!navigator.canShare?.({ files: [new File(['{}'], 'a.txt', { type: 'text/plain' })] }); } catch (e) { return false; } };
 
 /* ================= 設定画面（スマホ用） ================= */
 let lastBackup = null;
@@ -78,7 +80,7 @@ function settings() {
       <p class="muted">${canShareFile() ? '「送る」はLINE・メール・Googleドライブなどに保存できます。' : ''}「ファイルに保存」は「ダウンロード」フォルダーに入ります。</p>
       <div class="row section"><button id="restore">バックアップから復元</button></div>
       <p class="muted">復元すると、今の記録はすべて置き換わります。PC版のバックアップも読み込めます。</p>
-      <input type="file" id="file" accept=".json,application/json" hidden>
+      <input type="file" id="file" accept=".json,.txt,application/json,text/plain" hidden>
     </section>
     <section class="card"><h2>🎬 演出</h2>
       <label class="row"><input id="cutinSetting" type="checkbox" ${S.data.settings.cutin ? 'checked' : ''} style="width:22px;height:22px"> 試合で技を使ったときにカットインを表示する</label>
